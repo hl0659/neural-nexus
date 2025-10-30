@@ -52,7 +52,6 @@ data/
 # Database
 *.db
 *.sqlite
-.pgpass
 
 # Test Coverage
 .coverage
