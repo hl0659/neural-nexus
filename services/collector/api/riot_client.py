@@ -81,6 +81,12 @@ class RiotAPIClient:
         
         return self._make_request(url, region)
     
+    def get_summoner_by_id(self, summoner_id: str, region: str) -> Optional[Dict]:
+        """Get summoner info by summoner ID"""
+        url = f"https://{region}.api.riotgames.com/lol/summoner/v4/summoners/{summoner_id}"
+        
+        return self._make_request(url, region)
+
     def get_league_entries(self, summoner_id: str, region: str) -> List[Dict]:
         """Get ranked info for summoner"""
         url = f"https://{region}.api.riotgames.com/lol/league/v4/entries/by-summoner/{summoner_id}"
