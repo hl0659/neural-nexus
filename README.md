@@ -4,9 +4,9 @@
 
 ## 📊 Project Status
 
-**Phase:** APEX Service Complete, NEXUS Service Pending  
-**Data Collected:** 17,537+ matches with full timeline data  
-**Players Discovered:** 1,567 (894 Challenger seeds + 673 network discovered)  
+**Phase:** Both Services Operational - Unified Pipeline Active  
+**Data Collected:** 17,600+ matches with full timeline data  
+**Players Discovered:** 2,300+ (894 Challenger seeds + 1,400+ network discovered)  
 **Storage:** ~1.1 GB compressed JSON data
 
 ---
@@ -21,6 +21,7 @@ Neural Nexus v3.0 is a sophisticated data collection system that maximizes Riot 
 - **NEXUS Key** - Expands network through Master and below
 - **Parallel Processing** - All 3 regions (NA1, EUW1, KR) simultaneously
 - **Match Locking** - Prevents duplicate collection between keys
+- **Unified Pipeline** - Automatic APEX → NEXUS fallback when queues empty
 
 ---
 
@@ -32,6 +33,7 @@ Neural Nexus v3.0 is a sophisticated data collection system that maximizes Riot 
 - ✅ **Participant Processing** - Extracts all 10 players from each match
 - ✅ **Network Discovery** - Automatically expands from seeds into connected players
 - ✅ **Compressed Storage** - Gzipped JSON files (~60KB per match avg)
+- ✅ **Unified Collection** - Seamless APEX → NEXUS fallback
 
 ### Performance Optimization
 - ✅ **Parallel Regional Collection** - 3 regions simultaneously
@@ -39,6 +41,7 @@ Neural Nexus v3.0 is a sophisticated data collection system that maximizes Riot 
 - ✅ **Match Locking System** - Database-backed coordination
 - ✅ **Smart Participant Processing** - Checks database before API calls (50% reduction)
 - ✅ **Zero Duplication** - Both keys coordinate seamlessly
+- ✅ **Automatic Queue Management** - PUUID resolution on-demand
 
 ### Database
 - ✅ **PostgreSQL 18** - Robust relational storage
@@ -50,50 +53,60 @@ Neural Nexus v3.0 is a sophisticated data collection system that maximizes Riot 
 ---
 
 ## 📁 Project Structure
-
 ```
 neural-nexus/
 ├── services/
-│   ├── apex/                      # APEX Service (High Elo)
-│   │   ├── seeder.py              ✅ Seeds Challenger players (parallel)
-│   │   ├── collector.py           ✅ Deep match collection (200 games)
-│   │   ├── player_processor.py   ✅ Participant extraction (optimized)
-│   │   └── run_collection_parallel.py  ✅ Parallel collection runner
+│   ├── apex/                              # APEX Service (High Elo)
+│   │   ├── seeder.py                      ✅ Seeds Challenger players (parallel)
+│   │   ├── collector.py                   ✅ Deep match collection (200 games)
+│   │   ├── player_processor.py           ✅ Participant extraction (optimized)
+│   │   └── run_collection_parallel_unified.py  ✅ Unified APEX+NEXUS pipeline
 │   │
-│   ├── nexus/                     # NEXUS Service (Network Expansion)
-│   │   └── [Pending Implementation]
+│   ├── nexus/                             # NEXUS Service (Network Expansion)
+│   │   ├── collector.py                   ✅ Deep match collection
+│   │   ├── player_processor.py           ✅ Participant extraction
+│   │   ├── activator.py                   ✅ On-demand PUUID resolution
+│   │   └── run_collection_parallel.py    ✅ Parallel collection runner
 │   │
-│   └── shared/                    # Shared Utilities
+│   └── shared/                            # Shared Utilities
 │       ├── api/
-│       │   ├── riot_client.py     ✅ Dual-key API client
-│       │   └── rate_limiter.py    ✅ Per-key, per-region limits
+│       │   ├── riot_client.py             ✅ Dual-key API client
+│       │   └── rate_limiter.py            ✅ Per-key, per-region limits
 │       ├── storage/
-│       │   ├── json_handler.py    ✅ Gzipped match storage
-│       │   └── match_lock.py      ✅ Coordination system
+│       │   ├── json_handler.py            ✅ Gzipped match storage
+│       │   └── match_lock.py              ✅ Coordination system
 │       └── models/
-│           ├── player.py          ✅ Player data structures
-│           └── match.py           ✅ Match data structures
+│           ├── player.py                  ✅ Player data structures
+│           └── match.py                   ✅ Match data structures
 │
 ├── database/
 │   ├── operations/
-│   │   ├── player_ops.py          ✅ Player CRUD with Riot ID
-│   │   ├── match_ops.py           ✅ Match CRUD with locking
-│   │   ├── queue_ops.py           ✅ Queue management
-│   │   └── status_ops.py          ✅ System status tracking
-│   └── schema_v3.sql              ✅ Complete database schema
+│   │   ├── player_ops.py                  ✅ Player CRUD with Riot ID
+│   │   ├── match_ops.py                   ✅ Match CRUD with locking
+│   │   ├── queue_ops.py                   ✅ Queue management
+│   │   └── status_ops.py                  ✅ System status tracking
+│   └── schema_v3.sql                      ✅ Complete database schema
+│
+├── scripts/
+│   ├── preflight_nexus.py                 ✅ NEXUS pre-flight check
+│   ├── verify_nexus_test.py              ✅ NEXUS test verification
+│   ├── cleanup_locks.py                   ✅ Match lock cleanup
+│   ├── fix_nexus_status.py               ✅ Status metric fixes
+│   ├── check_nexus_queue.py              ✅ Queue composition analysis
+│   └── show_table_structure.py           ✅ Database structure display
 │
 ├── shared/
 │   ├── config/
-│   │   └── settings.py            ✅ Environment configuration
+│   │   └── settings.py                    ✅ Environment configuration
 │   └── database/
-│       └── connection.py          ✅ Connection pooling
+│       └── connection.py                  ✅ Connection pooling
 │
 └── data/ (F: drive)
     └── F:/neural_nexus_data_v3/
-        ├── matches/               ✅ 17,537+ match files
-        │   ├── apex/              ✅ APEX-collected matches
-        │   └── nexus/             (Empty - pending NEXUS)
-        └── timelines/             ✅ Complete timeline data
+        ├── matches/                       ✅ 17,600+ match files
+        │   ├── apex/                      ✅ APEX-collected matches
+        │   └── nexus/                     ✅ NEXUS-collected matches
+        └── timelines/                     ✅ Complete timeline data
 ```
 
 ---
@@ -119,7 +132,6 @@ cd neural-nexus
 ```bash
 python -m venv venv
 venv\Scripts\activate  # Windows
-source venv/bin/activate  # Linux/Mac
 ```
 
 3. **Install dependencies**
@@ -133,77 +145,68 @@ cp .env.example .env
 # Edit .env with your settings
 ```
 
-Required `.env` variables:
-```env
-DATABASE_URL=postgresql://postgres:password@localhost:5432/neural_nexus_v3
-RIOT_API_KEY_APEX=RGAPI-your-apex-key
-RIOT_API_KEY_NEXUS=RGAPI-your-nexus-key
-REGIONS=na1,euw1,kr
-MATCH_HISTORY_DEPTH=200
-DATA_PATH=F:/neural_nexus_data_v3
-```
-
 5. **Initialize database**
 ```bash
-psql -U postgres
+# In psql:
 CREATE DATABASE neural_nexus_v3;
 \q
 
-psql -U postgres -d neural_nexus_v3 < database/schema_v3.sql
+# Load schema:
+psql -U postgres -d neural_nexus_v3 -f schema_v3.sql
 ```
 
 6. **Create data directories**
 ```bash
-python scripts/init_directories.py
+python setup_v3_structure.py
 ```
 
 ---
 
 ## 💻 Usage
 
-### Phase 1: Seed Challenger Players
-
+### Phase 1: Seed Challenger Players (One-time)
 ```bash
 python -m services.apex.seeder
 ```
 
 Seeds ~900 Challenger players from NA1, EUW1, and KR in parallel.
 
-**Output:** ~894 players in APEX queue, ready for collection
-
-### Phase 2: Collect Matches (Parallel)
-
+### Phase 2: Run Unified Collection
 ```bash
-python -m services.apex.run_collection_parallel --hours 5
+# Short test (30 minutes)
+python -m services.apex.run_collection_parallel_unified --hours 0.5
+
+# Standard run (2 hours)
+python -m services.apex.run_collection_parallel_unified --hours 2
+
+# Overnight run (8 hours)
+python -m services.apex.run_collection_parallel_unified --hours 8
 ```
 
-Runs parallel collection across all 3 regions for specified duration.
-
-**Performance:**
-- ~20 matches per region per rate limit window
-- ~600 matches/hour per region
-- ~1,800 matches/hour total (all regions)
-
-### Phase 3: Process Participants
-
-Automatically integrated into collector. Extracts all 10 players from each match, discovers network connections, and queues non-Challenger players for NEXUS.
+**What it does:**
+- Processes APEX queue (Challenger/GM) first
+- Automatically switches to NEXUS queue (Master/Diamond/etc.)
+- Runs all 3 regions in parallel
+- Coordinates via match locks to prevent duplicates
+- Discovers new players from match participants
 
 ---
 
 ## 📊 Current Statistics
-
 ```
 Players:
   - Challenger Seeds: 894
-  - Discovered Players: 673
-  - Total: 1,567
+  - Discovered Players: 1,400+
+  - Total: 2,300+
   
 Queues:
-  - APEX Queue: 1,010 players
-  - NEXUS Queue: 555 players (ready for expansion!)
+  - APEX Queue: 1,000+ players
+  - NEXUS Queue: 1,200+ players
   
 Matches:
-  - Total Collected: 17,537
+  - Total Collected: 17,600+
+  - APEX Matches: 17,500+
+  - NEXUS Matches: 100+
   - Storage Size: ~1.1 GB (compressed)
   - Average: ~60 KB per match
   
@@ -217,131 +220,97 @@ API Efficiency:
 
 ## 🏗️ Architecture
 
-### Dual-Key Coordination
-
+### Unified Pipeline
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    APEX KEY (High Elo)                  │
+│           UNIFIED COLLECTION PIPELINE                   │
 │                                                         │
-│  1. Seed Challenger/GM (894 players)                   │
-│  2. Collect 200 games each                             │
-│  3. Extract all participants                            │
-│  4. Discover lower-rank players → NEXUS Queue          │
-└─────────────────────────────────────────────────────────┘
-                           ↓
-                  Discovers Master/Diamond
-                           ↓
-┌─────────────────────────────────────────────────────────┐
-│                NEXUS KEY (Network Expansion)            │
+│  ┌─────────────────┐      ┌──────────────────┐       │
+│  │   APEX Queue    │ ───→ │ Region Thread 1  │       │
+│  │  (Challenger/   │      │  (NA1)           │       │
+│  │   Grandmaster)  │      └──────────────────┘       │
+│  └─────────────────┘                                  │
+│          ↓ (when empty)                               │
+│  ┌─────────────────┐      ┌──────────────────┐       │
+│  │   NEXUS Queue   │ ───→ │ Region Thread 2  │       │
+│  │  (Master+)      │      │  (EUW1)          │       │
+│  └─────────────────┘      └──────────────────┘       │
 │                                                         │
-│  1. Activate when non-Challenger players found         │
-│  2. Resolve Riot ID → NEXUS PUUID                      │
-│  3. Collect 200 games each                             │
-│  4. Expand network exponentially                        │
-└─────────────────────────────────────────────────────────┘
-                           ↓
-                  Both store to unified DB
-                           ↓
-┌─────────────────────────────────────────────────────────┐
-│              Unified PostgreSQL Database                │
+│                           ┌──────────────────┐       │
+│                           │ Region Thread 3  │       │
+│                           │  (KR)            │       │
+│                           └──────────────────┘       │
 │                                                         │
-│  - Players identified by Riot ID (universal)           │
-│  - Both PUUIDs stored per player                        │
-│  - Match locks prevent duplication                      │
-│  - Full participant linkage                             │
+│  Features:                                             │
+│  - Automatic fallback (APEX → NEXUS)                  │
+│  - Match locks prevent duplicates                      │
+│  - On-demand PUUID resolution                          │
+│  - Tier-based queue routing                            │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ### Key Discoveries
 
-**PUUID Encryption:** Each API key encrypts PUUIDs differently. We use Riot ID (gameName#tagLine) as the universal identifier and store both encrypted PUUIDs.
+**PUUID Encryption:** Each API key encrypts PUUIDs differently. Solution: Use Riot ID (gameName#tagLine) as universal identifier, store both encrypted PUUIDs.
 
-**Match Locking:** Database-backed coordination prevents both keys from collecting the same match simultaneously.
+**Match Locking:** Database-backed coordination prevents both keys from collecting the same match.
 
-**Participant Optimization:** Checking database before API calls reduces participant processing from 20 → 4-6 calls per match.
-
----
-
-## 🔧 Configuration
-
-### Rate Limits
-
-```python
-RATE_LIMIT_REQUESTS = 100      # Per 2 minutes
-RATE_LIMIT_WINDOW_SECONDS = 120
-```
-
-Each region has independent rate limits, so 3 regions = 300 calls per 2 minutes per key.
-
-### Match History Depth
-
-```python
-MATCH_HISTORY_DEPTH = 200  # Games per player
-```
-
-API limit is 100 per request, so we make 2 requests per player.
-
-### Regional Routing
-
-```python
-REGIONAL_ROUTING = {
-    'na1': 'americas',
-    'euw1': 'europe',
-    'kr': 'asia'
-}
-```
-
-Some endpoints use platform routing (na1, euw1), others use regional (americas, europe, asia).
+**Participant Optimization:** Checking database before API calls reduced processing from 20 → 4-6 calls per match.
 
 ---
 
-## 🧪 Testing
-
-Each component has standalone tests:
-
+## 🔧 Maintenance Scripts
 ```bash
-# Test configuration
-python -m shared.config.settings
+# Pre-flight check before collection
+python scripts/preflight_nexus.py
 
-# Test database connection
-python -m shared.database.connection
+# Verify test results
+python scripts/verify_nexus_test.py
 
-# Test API clients
-python -m services.shared.api.riot_client
+# Clean up stale match locks
+python scripts/cleanup_locks.py
 
-# Test rate limiter
-python -m services.shared.api.rate_limiter
+# Fix system status metrics
+python scripts/fix_nexus_status.py
 
-# Test match locking
-python -m services.shared.storage.match_lock
-
-# Test player operations
-python -m database.operations.player_ops
-
-# Test match operations
-python -m database.operations.match_ops
-
-# Test queue operations
-python -m database.operations.queue_ops
-
-# Test status operations
-python -m database.operations.status_ops
-
-# Test seeder
-python -m services.apex.seeder
-
-# Test collector
-python -m services.apex.collector
-
-# Test participant processor
-python -m services.apex.player_processor
+# Analyze queue composition
+python scripts/check_nexus_queue.py
 ```
+
+---
+
+## 🗺️ Next Steps
+
+### Immediate (Completed ✅)
+- [x] Dual-key API client
+- [x] APEX service (Challenger collection)
+- [x] NEXUS service (Network expansion)
+- [x] Unified pipeline (automatic fallback)
+- [x] Maintenance scripts
+
+### Short-term
+- [ ] Monitoring dashboard (real-time stats)
+- [ ] Health checks & alerts
+- [ ] Error recovery & retry logic
+- [ ] Graceful shutdown handling
+- [ ] Progress persistence across restarts
+
+### Medium-term
+- [ ] Data analysis pipeline
+- [ ] Champion win rates by patch
+- [ ] Player performance metrics
+- [ ] Meta evolution tracking
+- [ ] Timeline event extraction
+
+### Long-term
+- [ ] Machine learning features
+- [ ] Draft Prophet (pick/ban predictions)
+- [ ] Build Optimizer (item recommendations)
+- [ ] Macro Advisor (objective timing)
 
 ---
 
 ## 📈 Performance Metrics
-
-### Collection Throughput
 
 | Metric | Value |
 |--------|-------|
@@ -349,49 +318,8 @@ python -m services.apex.player_processor
 | Matches/hour (all regions) | ~1,800 |
 | Matches/day (theoretical) | ~43,200 |
 | Storage per match | ~60 KB |
-
-### Database Performance
-
-| Operation | Time |
-|-----------|------|
-| Insert player | <1ms |
-| Insert match | <2ms |
-| Insert participant | <1ms |
-| Match lock acquire | <5ms |
-| Queue depth check | <1ms |
-
----
-
-## 🗺️ Roadmap
-
-### Phase 1: APEX Service ✅ COMPLETE
-- [x] Dual-key API client
-- [x] Parallel region seeding
-- [x] Deep match collection (200 games)
-- [x] Optimized participant processing
-- [x] Match locking coordination
-- [x] Database operations
-
-### Phase 2: NEXUS Service 🚧 IN PROGRESS
-- [ ] NEXUS Activator (watches for lower-rank players)
-- [ ] PUUID Resolver (Riot ID → NEXUS PUUID)
-- [ ] NEXUS Collector (parallel collection)
-- [ ] NEXUS Participant Processor
-- [ ] Automatic expansion into lower ranks
-
-### Phase 3: System Integration
-- [ ] Monitoring dashboard
-- [ ] Health checks
-- [ ] Error recovery
-- [ ] Graceful shutdown
-- [ ] Progress persistence
-
-### Phase 4: Data Analysis
-- [ ] Champion win rates by patch
-- [ ] Player performance metrics
-- [ ] Meta evolution tracking
-- [ ] Network analysis (player connections)
-- [ ] Timeline event extraction
+| API calls per match | 2-6 |
+| Duplicate rate | 0% |
 
 ---
 
@@ -412,12 +340,6 @@ MIT License - See LICENSE file for details
 - Riot Games for providing the API
 - PostgreSQL team for the excellent database
 - Python community for amazing libraries
-
----
-
-## 📧 Contact
-
-For questions or feedback, please open an issue on GitHub.
 
 ---
 
