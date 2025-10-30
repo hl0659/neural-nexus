@@ -76,12 +76,12 @@ class CollectorService:
                             match_data, timeline_data, self.region
                         )
                         
-                        # Save to database
-                        insert_match(match_data, match_path, timeline_path)
-                        
-                        # Discover new players
+                        # Discover new players FIRST
                         self.player_discovery.process_match_participants(match_data)
-                        
+
+                        # Then save to database
+                        insert_match(match_data, match_path, timeline_path)
+                                                
                         self.stats['matches_collected'] += 1
                         print(f"✅ Collected {match_id}")
                         
