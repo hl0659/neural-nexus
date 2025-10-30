@@ -68,7 +68,9 @@ class RiotAPIClient:
             elif response.status_code == 429:
                 # Rate limited
                 retry_after = int(response.headers.get('Retry-After', 60))
-                print(f"⚠️  [{self.key_type.upper()}] Rate limited. Retry after {retry_after}s")
+                # Extract region from URL
+                region = url.split('//')[1].split('.')[0] if '://' in url else 'UNKNOWN'
+                print(f"⚠️  [{self.key_type.upper()}:{region.upper()}] Rate limited. Retry after {retry_after}s")
                 time.sleep(retry_after)
                 return None
             
