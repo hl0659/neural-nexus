@@ -1,4 +1,4 @@
-import httpx
+import httpx # pyright: ignore[reportMissingImports]
 import time
 from typing import Dict, List, Optional
 from services.collector.api.rate_limiter import RegionalRateLimiter

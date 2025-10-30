@@ -1,6 +1,6 @@
 import os
 from typing import List
-from dotenv import load_dotenv
+from dotenv import load_dotenv # type: ignore
 
 # Load environment variables
 load_dotenv()

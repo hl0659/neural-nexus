@@ -1,6 +1,6 @@
-import psycopg
-from psycopg.rows import dict_row
-from psycopg_pool import ConnectionPool
+import psycopg # type: ignore
+from psycopg.rows import dict_row # pyright: ignore[reportMissingImports]
+from psycopg_pool import ConnectionPool # pyright: ignore[reportMissingImports]
 from contextlib import contextmanager
 from shared.config.settings import settings
 

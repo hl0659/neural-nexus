@@ -1,4 +1,4 @@
-import psycopg
+import psycopg # type: ignore
 from shared.config.settings import settings
 
 try:

@@ -39,7 +39,9 @@ class CollectorService:
             try:
                 # Get next player to check
                 player = self.queue_manager.get_next_player(self.region)
-                
+                if shutdown_event.is_set():
+                    break
+
                 if not player:
                     # No one due - get oldest checked player
                     player = self.queue_manager.get_oldest_checked_player(self.region)
@@ -53,7 +55,9 @@ class CollectorService:
                 
                 # Find new matches
                 new_matches = self.match_scanner.find_new_matches(player)
-                
+                if shutdown_event.is_set():
+                    break
+
                 print(f"🔍 {self.region} - {player.get('summoner_name', 'Unknown')}: {len(new_matches)} new matches")
                 
                 # Collect each new match
@@ -62,7 +66,8 @@ class CollectorService:
                         # Fetch match data
                         match_data = self.api_client.get_match(match_id, self.region)
                         self.stats['api_calls'] += 1
-                        
+                        if shutdown_event.is_set():
+                            break
                         if not match_data:
                             print(f"❌ Failed to fetch match {match_id}")
                             continue
@@ -146,7 +151,6 @@ def main():
         collectors.append(collector)
         
         thread = Thread(target=collector.run, name=f"Collector-{region}")
-        thread.daemon = True
         thread.start()
         threads.append(thread)
     
@@ -171,7 +175,9 @@ def main():
     # Wait for threads to finish
     print("\n⏳ Waiting for collectors to finish...")
     for thread in threads:
-        thread.join(timeout=10)
+        thread.join(timeout=5)  # Shorter timeout
+        if thread.is_alive():
+            print(f"⚠️  Thread {thread.name} still running, forcing exit")
     
     # Close database pool
     db_pool.close()
