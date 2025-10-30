@@ -1,22 +1,11 @@
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Optional
 from shared.database.connection import db_pool
+from shared.config.settings import settings
+from services.collector.api.riot_client import RiotAPIClient
 
 class PlayerDiscovery:
-    """Discovers new players from match participants"""
-    
-    TIER_VALUES = {
-        'CHALLENGER': 9,
-        'GRANDMASTER': 8,
-        'MASTER': 7,
-        'DIAMOND': 6,
-        'EMERALD': 5,
-        'PLATINUM': 4,
-        'GOLD': 3,
-        'SILVER': 2,
-        'BRONZE': 1,
-        'IRON': 0
-    }
+    """Discovers new players from match participants and fetches their real ranks"""
     
     RECHECK_DAYS = {
         'CHALLENGER': 2,
@@ -25,71 +14,112 @@ class PlayerDiscovery:
         'DIAMOND': 5,
         'EMERALD': 7,
         'PLATINUM': 10,
+        'GOLD': 14,
         'UNKNOWN': 10
     }
+    
+    def __init__(self):
+        # Use enrichment API key for player lookups
+        self.api_client = RiotAPIClient(settings.RIOT_API_KEY_ENRICHMENT)
     
     def process_match_participants(self, match_data: Dict):
         """
         Extract and add new players from match participants.
-        Infers tier from known players in the lobby.
+        Queries real rank data from API.
         """
         participants = match_data['info']['participants']
         region = match_data['metadata']['matchId'].split('_')[0]
         
-        # Get tiers of known players
-        known_tiers = []
-        for p in participants:
-            existing_player = self._get_player(p['puuid'])
-            if existing_player and existing_player.get('tier'):
-                known_tiers.append(existing_player['tier'])
-        
-        # Infer tier for unknown players
-        inferred_tier = self._infer_tier(known_tiers)
-        
         # Process each participant
         new_players = []
         for p in participants:
-            if not self._player_exists(p['puuid']):
-                recheck_days = self.RECHECK_DAYS.get(inferred_tier, 10)
-                next_check = datetime.now() + timedelta(days=recheck_days)
-                
-                new_players.append({
-                    'puuid': p['puuid'],
-                    'summoner_name': p.get('summonerName', 'Unknown'),
-                    'region': region,
-                    'tier': inferred_tier,
-                    'next_check_after': next_check
-                })
+            puuid = p['puuid']
+            
+            # Skip if player already exists
+            if self._player_exists(puuid):
+                continue
+            
+            # Get real rank from API
+            rank_data = self._get_player_rank(puuid, region)
+            
+            if rank_data:
+                tier = rank_data['tier']
+                rank = rank_data['rank']
+                lp = rank_data['league_points']
+                wins = rank_data['wins']
+                losses = rank_data['losses']
+                summoner_id = rank_data['summoner_id']
+            else:
+                # Fallback if API fails
+                tier = 'UNKNOWN'
+                rank = None
+                lp = 0
+                wins = 0
+                losses = 0
+                summoner_id = None
+            
+            # Calculate next check time based on tier
+            recheck_days = self.RECHECK_DAYS.get(tier, 10)
+            next_check = datetime.now() + timedelta(days=recheck_days)
+            
+            new_players.append({
+                'puuid': puuid,
+                'summoner_id': summoner_id,
+                'summoner_name': p.get('summonerName', 'Unknown'),
+                'region': region,
+                'tier': tier,
+                'rank': rank,
+                'league_points': lp,
+                'wins': wins,
+                'losses': losses,
+                'next_check_after': next_check
+            })
         
         # Batch insert new players
         if new_players:
             self._insert_players_batch(new_players)
-            print(f"✨ Discovered {len(new_players)} new players (tier: {inferred_tier})")
+            
+            # Count by tier for logging
+            tier_counts = {}
+            for p in new_players:
+                tier = p['tier']
+                tier_counts[tier] = tier_counts.get(tier, 0) + 1
+            
+            tier_summary = ', '.join([f"{count} {tier}" for tier, count in tier_counts.items()])
+            print(f"✨ Discovered {len(new_players)} new players ({tier_summary})")
     
-    def _infer_tier(self, known_tiers: List[str]) -> str:
-        """Infer tier from known players in lobby"""
-        if not known_tiers:
-            return 'UNKNOWN'
-        
-        # Calculate average tier value
-        tier_values = [self.TIER_VALUES.get(t, 3) for t in known_tiers]
-        avg_value = sum(tier_values) / len(tier_values)
-        
-        # Return tier one below average (matchmaking usually works this way)
-        if avg_value >= 8.5:
-            return 'GRANDMASTER'
-        elif avg_value >= 7.5:
-            return 'MASTER'
-        elif avg_value >= 6.5:
-            return 'DIAMOND'
-        elif avg_value >= 5.5:
-            return 'EMERALD'
-        elif avg_value >= 4.5:
-            return 'PLATINUM'
-        elif avg_value >= 3.5:
-            return 'GOLD'
-        else:
-            return 'UNKNOWN'
+    def _get_player_rank(self, puuid: str, region: str) -> Optional[Dict]:
+        """Get player's ranked data from API using enrichment key"""
+        try:
+            # First get summoner ID
+            summoner = self.api_client.get_summoner_by_puuid(puuid, region)
+            if not summoner or 'id' not in summoner:
+                return None
+            
+            summoner_id = summoner['id']
+            
+            # Get league entries
+            league_entries = self.api_client.get_league_entries(summoner_id, region)
+            if not league_entries:
+                return None
+            
+            # Find ranked solo/duo entry
+            for entry in league_entries:
+                if entry.get('queueType') == 'RANKED_SOLO_5x5':
+                    return {
+                        'summoner_id': summoner_id,
+                        'tier': entry.get('tier', 'UNKNOWN'),
+                        'rank': entry.get('rank', 'IV'),
+                        'league_points': entry.get('leaguePoints', 0),
+                        'wins': entry.get('wins', 0),
+                        'losses': entry.get('losses', 0)
+                    }
+            
+            return None
+            
+        except Exception as e:
+            print(f"  ⚠️  Failed to get rank for {puuid}: {e}")
+            return None
     
     def _player_exists(self, puuid: str) -> bool:
         """Check if player already exists"""
@@ -97,22 +127,19 @@ class PlayerDiscovery:
             cursor.execute("SELECT 1 FROM players WHERE puuid = %s", (puuid,))
             return cursor.fetchone() is not None
     
-    def _get_player(self, puuid: str) -> Dict:
-        """Get player data"""
-        with db_pool.get_cursor() as cursor:
-            cursor.execute("SELECT * FROM players WHERE puuid = %s", (puuid,))
-            return cursor.fetchone()
-    
     def _insert_players_batch(self, players: List[Dict]):
-        """Batch insert new players"""
+        """Batch insert new players with full rank data"""
         with db_pool.get_cursor() as cursor:
             for player in players:
                 cursor.execute("""
                     INSERT INTO players (
-                        puuid, summoner_name, region, tier, next_check_after
+                        puuid, summoner_id, summoner_name, region, 
+                        tier, rank, league_points, wins, losses,
+                        next_check_after, last_rank_update
                     ) VALUES (
-                        %(puuid)s, %(summoner_name)s, %(region)s, 
-                        %(tier)s, %(next_check_after)s
+                        %(puuid)s, %(summoner_id)s, %(summoner_name)s, %(region)s,
+                        %(tier)s, %(rank)s, %(league_points)s, %(wins)s, %(losses)s,
+                        %(next_check_after)s, CURRENT_TIMESTAMP
                     )
                     ON CONFLICT (puuid) DO NOTHING
                 """, player)
