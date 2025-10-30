@@ -83,7 +83,7 @@ class PlayerProcessor:
     
     def _process_single_participant(self, participant: Dict, match_id: str, region: str) -> Dict:
         """
-        Process one participant from a match
+        Process one participant from a match (OPTIMIZED)
         
         Args:
             participant: Participant data from match
@@ -100,13 +100,47 @@ class PlayerProcessor:
             'error': None
         }
         
-        # Get PUUID from participant (this is APEX-encrypted)
+        # Get PUUID from participant (APEX-encrypted)
         apex_puuid = participant.get('puuid')
         if not apex_puuid:
             result['error'] = 'No PUUID in participant data'
             return result
         
-        # Get Riot ID from PUUID
+        # OPTIMIZATION: Check if we already have this player by PUUID
+        from database.operations.player_ops import get_player_by_puuid
+        
+        existing_player = get_player_by_puuid(region, apex_puuid, 'apex')
+        
+        if existing_player:
+            # Player already in database! Skip all API calls
+            game_name = existing_player.game_name
+            tag_line = existing_player.tag_line
+            
+            # Just insert participant and we're done
+            insert_participant(
+                match_id=match_id,
+                region=region,
+                game_name=game_name,
+                tag_line=tag_line,
+                participant_id=participant['participantId'],
+                champion_id=participant['championId'],
+                champion_name=participant['championName'],
+                team_id=participant['teamId'],
+                team_position=participant.get('teamPosition', 'UNKNOWN'),
+                won=participant['win'],
+                kills=participant['kills'],
+                deaths=participant['deaths'],
+                assists=participant['assists'],
+                total_damage_dealt_to_champions=participant.get('totalDamageDealtToChampions', 0),
+                gold_earned=participant.get('goldEarned', 0),
+                cs_score=participant.get('totalMinionsKilled', 0) + participant.get('neutralMinionsKilled', 0),
+                vision_score=participant.get('visionScore', 0)
+            )
+            
+            result['success'] = True
+            return result
+        
+        # Player not in DB - need to get Riot ID from API
         account_data = self.api_client.get_account_by_puuid(apex_puuid, region)
         result['api_calls'] += 1
         
@@ -121,33 +155,59 @@ class PlayerProcessor:
             result['error'] = 'Missing gameName or tagLine'
             return result
         
-        # Get rank data
-        league_data = self.api_client.get_league_by_puuid(apex_puuid, region)
-        result['api_calls'] += 1
+        # Check if player exists by Riot ID (race condition with other key)
+        existing_by_riot_id = get_player(region, game_name, tag_line)
         
-        tier = 'UNRANKED'
-        rank = None
-        league_points = 0
-        wins = 0
-        losses = 0
-        league_id = None
+        if existing_by_riot_id:
+            # Race condition: other key just added this player
+            # Update our PUUID on existing record
+            from database.operations.player_ops import update_apex_puuid
+            update_apex_puuid(region, game_name, tag_line, apex_puuid)
+            
+            # Get updated rank data
+            league_data = self.api_client.get_league_by_puuid(apex_puuid, region)
+            result['api_calls'] += 1
+            
+            if league_data:
+                for entry in league_data:
+                    if entry.get('queueType') == 'RANKED_SOLO_5x5':
+                        update_rank_data(
+                            region=region,
+                            game_name=game_name,
+                            tag_line=tag_line,
+                            tier=entry.get('tier', 'UNRANKED'),
+                            rank=entry.get('rank'),
+                            league_points=entry.get('leaguePoints', 0),
+                            wins=entry.get('wins', 0),
+                            losses=entry.get('losses', 0),
+                            league_id=entry.get('leagueId')
+                        )
+                        break
         
-        if league_data:
-            for entry in league_data:
-                if entry.get('queueType') == 'RANKED_SOLO_5x5':
-                    tier = entry.get('tier', 'UNRANKED')
-                    rank = entry.get('rank')
-                    league_points = entry.get('leaguePoints', 0)
-                    wins = entry.get('wins', 0)
-                    losses = entry.get('losses', 0)
-                    league_id = entry.get('leagueId')
-                    break
-        
-        # Check if player exists
-        existing_player = get_player(region, game_name, tag_line)
-        
-        if not existing_player:
-            # New player discovered!
+        else:
+            # Truly new player - get rank and insert
+            league_data = self.api_client.get_league_by_puuid(apex_puuid, region)
+            result['api_calls'] += 1
+            
+            tier = 'UNRANKED'
+            rank = None
+            league_points = 0
+            wins = 0
+            losses = 0
+            league_id = None
+            
+            if league_data:
+                for entry in league_data:
+                    if entry.get('queueType') == 'RANKED_SOLO_5x5':
+                        tier = entry.get('tier', 'UNRANKED')
+                        rank = entry.get('rank')
+                        league_points = entry.get('leaguePoints', 0)
+                        wins = entry.get('wins', 0)
+                        losses = entry.get('losses', 0)
+                        league_id = entry.get('leagueId')
+                        break
+            
+            # Insert new player
             insert_player(
                 region=region,
                 game_name=game_name,
@@ -167,25 +227,9 @@ class PlayerProcessor:
             
             # Add to appropriate queue
             if tier in ['CHALLENGER', 'GRANDMASTER']:
-                # High elo - add to APEX queue
                 add_to_queue(region, game_name, tag_line, 'apex', priority=8)
             else:
-                # Lower elo - add to NEXUS queue (triggers NEXUS activation!)
                 add_to_queue(region, game_name, tag_line, 'nexus', priority=5)
-        
-        else:
-            # Existing player - update rank if newer
-            update_rank_data(
-                region=region,
-                game_name=game_name,
-                tag_line=tag_line,
-                tier=tier,
-                rank=rank,
-                league_points=league_points,
-                wins=wins,
-                losses=losses,
-                league_id=league_id
-            )
         
         # Insert participant data
         insert_participant(

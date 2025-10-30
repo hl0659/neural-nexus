@@ -82,6 +82,40 @@ def get_player(region: str, game_name: str, tag_line: str) -> Optional[Player]:
         print(f"❌ Failed to get player {game_name}#{tag_line}: {e}")
         return None
 
+def get_player_by_puuid(region: str, puuid: str, key_type: str) -> Optional[Player]:
+    """
+    Get a player by PUUID for a specific API key
+    
+    Args:
+        region: Region code
+        puuid: Player PUUID (encrypted by specific key)
+        key_type: 'apex' or 'nexus'
+    
+    Returns:
+        Player object or None if not found
+    """
+    try:
+        with db_pool.get_cursor(commit=False) as cursor:
+            if key_type == 'apex':
+                column = 'apex_puuid'
+            elif key_type == 'nexus':
+                column = 'nexus_puuid'
+            else:
+                raise ValueError("key_type must be 'apex' or 'nexus'")
+            
+            cursor.execute(f"""
+                SELECT * FROM players
+                WHERE region = %s AND {column} = %s
+            """, (region, puuid))
+            
+            row = cursor.fetchone()
+            if row:
+                return Player(**row)
+            return None
+    
+    except Exception as e:
+        print(f"❌ Failed to get player by PUUID: {e}")
+        return None
 
 def update_apex_puuid(region: str, game_name: str, tag_line: str, apex_puuid: str) -> bool:
     """Update APEX PUUID for a player"""

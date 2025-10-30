@@ -17,13 +17,14 @@ from services.shared.storage.match_lock import match_lock
 from database.operations.player_ops import get_player, update_apex_check
 from database.operations.match_ops import insert_match, match_exists
 from database.operations.status_ops import update_service_status
-
+from services.apex.player_processor import PlayerProcessor
 
 class ApexCollector:
     """Collects deep match history (200 games) for Challenger players"""
     
     def __init__(self):
         self.api_client = RiotAPIClient('apex')
+        self.player_processor = PlayerProcessor()
         self.matches_collected = 0
         self.matches_skipped = 0
         self.api_calls = 0
@@ -212,11 +213,17 @@ class ApexCollector:
             )
             
             if success:
+                # Process participants (extract all 10 players)
+                participant_stats = self.player_processor.process_match_participants(match_data, region)
+                
                 result['collected'] = True
                 result['reason'] = 'success'
+                result['participants_processed'] = participant_stats['participants_processed']
+                result['players_discovered'] = participant_stats['players_discovered']
+                result['api_calls'] += participant_stats['api_calls']
             else:
                 result['reason'] = 'db_insert_failed'
-            
+
             # Release lock (match collected successfully)
             match_lock.release(match_id)
         
@@ -237,7 +244,7 @@ class ApexCollector:
     def close(self):
         """Close API client"""
         self.api_client.close()
-
+        self.player_processor.close()
 
 if __name__ == "__main__":
     # Test collector on a single player
